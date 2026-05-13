@@ -7,6 +7,9 @@ Prerequisites:
 
 Dispatcharr configured, and an API account created with an API Key
 
+---------------------------------------------------------------------------------------------
+
+
 How to use:
 
 Download the docker-compose.yml, default.conf and the index.html and put them both in the same location
