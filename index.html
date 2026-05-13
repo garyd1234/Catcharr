@@ -2,14 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Catcharr</title>
     
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#1f2937">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Catcharr">
     <link rel="apple-touch-icon" href="/icon.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,133 +17,177 @@
     <style>
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        #record-modal { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .modal-open { transform: translateY(0%); }
-        .modal-closed { transform: translateY(100%); }
-        #video-modal { transition: opacity 0.3s ease; }
+        
+        /* Grid Styling */
+        .epg-grid-container {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            overflow-x: auto;
+        }
+        .time-slot {
+            min-width: 200px;
+            border-left: 1px solid #374151;
+            text-align: center;
+            font-size: 0.75rem;
+            padding: 8px 0;
+            background: #1f2937;
+        }
+        .program-block {
+            position: absolute;
+            height: 100%;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            transition: opacity 0.2s;
+        }
+        .program-block:active { opacity: 0.7; }
+        
+        /* Page Transitions */
+        .page-layer { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .slide-hidden { transform: translateX(100%); }
+        .slide-visible { transform: translateX(0%); }
     </style>
 </head>
-<body class="bg-gray-900 text-white min-h-screen font-sans selection:bg-blue-500/30">
+<body class="bg-gray-900 text-white h-screen flex flex-col font-sans selection:bg-blue-500/30 overflow-hidden">
 
-    <header class="sticky top-0 z-40 bg-gray-800/95 backdrop-blur-sm shadow-xl border-b border-gray-700">
-        <div class="px-4 py-3 flex justify-between items-center">
-            <h1 class="text-xl font-bold tracking-tight text-blue-400 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-blue-400">
-                    <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3.1-9-7.56c0-1.25.5-2.4 1.1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"/>
-                    <path d="M8 14v.5"/><path d="M16 14v.5"/><path d="M11.25 16.25h1.5L12 17l-.75-.75Z"/>
-                </svg>
+    <header class="bg-gray-800/95 backdrop-blur-sm border-b border-gray-700 px-4 pt-12 pb-3 flex-none z-40">
+        <div class="flex justify-between items-center mb-3">
+            <h1 id="page-title" class="text-xl font-bold tracking-tight text-blue-400 flex items-center gap-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3.1-9-7.56c0-1.25.5-2.4 1.1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"/></svg>
                 Catcharr
             </h1>
-            <div id="status-indicator" class="flex h-3 w-3">
-                <span class="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-green-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            
+            <div class="flex items-center gap-3">
+                <div class="flex gap-1 bg-gray-900 rounded-lg p-1">
+                    <button onclick="switchView('live')" class="px-3 py-1 rounded text-sm font-bold bg-gray-700 text-white transition-colors" id="tab-live-top">Live</button>
+                    <button onclick="switchView('grid')" class="px-3 py-1 rounded text-sm font-bold text-gray-400 hover:text-white transition-colors" id="tab-grid-top">Grid</button>
+                    <button onclick="switchView('dvr')" class="px-3 py-1 rounded text-sm font-bold text-gray-400 hover:text-white transition-colors" id="tab-dvr-top">DVR</button>
+                </div>
+                <div id="status-indicator" class="h-2 w-2 rounded-full bg-green-500"></div>
             </div>
         </div>
         
-        <div class="px-4 pb-3 flex gap-2">
-            <select id="group-filter" class="bg-gray-700 text-white rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[120px] truncate text-sm border-none">
+        <div class="flex gap-2">
+            <select id="group-filter" class="bg-gray-900 text-white rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[120px] truncate text-sm border-none cursor-pointer">
                 <option value="ALL">All Groups</option>
             </select>
             <input type="text" id="search-input" placeholder="Search shows or channels..." 
-                class="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm border-none">
+                class="flex-1 bg-gray-900 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm border-none">
         </div>
     </header>
 
-    <main class="pb-24">
-        <div id="epg-container" class="divide-y divide-gray-800/50">
-            <div class="p-12 text-center text-gray-500" id="loading-state">
-                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-                <p class="text-sm font-medium">Fetching the Grid...</p>
-            </div>
+    <main id="view-container" class="flex-1 overflow-y-auto no-scrollbar relative">
+        <div class="p-12 text-center text-gray-500" id="loading-state">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+            <p class="text-sm font-medium">Fetching the Grid...</p>
         </div>
     </main>
 
-    <div id="record-modal" class="fixed inset-x-0 bottom-0 z-50 bg-gray-800 rounded-t-3xl shadow-2xl modal-closed p-6 border-t border-gray-700 pb-10">
-        <div class="w-12 h-1.5 bg-gray-600 rounded-full mx-auto mb-6"></div>
-        <div class="mb-6">
-            <h2 id="modal-title" class="text-2xl font-bold text-white mb-1 leading-tight">Show Title</h2>
-            <p id="modal-channel" class="text-blue-400 font-medium text-sm mb-3">Channel Name</p>
-            <p id="modal-desc" class="text-gray-400 text-sm leading-relaxed overflow-y-auto max-h-32 no-scrollbar">Description...</p>
-        </div>
-        <div class="flex gap-3">
-            <button onclick="closeModal()" class="w-16 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-2xl transition-colors active:scale-95 flex items-center justify-center">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+    <div id="detail-layer" class="fixed inset-0 bg-gray-900 z-50 page-layer slide-hidden overflow-y-auto no-scrollbar pb-10">
+        <header class="sticky top-0 bg-gray-800 p-4 pt-12 border-b border-gray-700 flex items-center justify-between">
+            <button onclick="goBack()" class="text-blue-400 font-bold flex items-center gap-1 active:scale-95 transition-transform">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                Back
             </button>
-            <button id="btn-play" onclick="playStream()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl transition-all active:scale-95 flex justify-center items-center gap-2">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6V4z"/></svg>
-                Watch
-            </button>
-            <button id="btn-record" onclick="submitRecording()" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-4 rounded-2xl transition-all active:scale-95 flex justify-center items-center gap-2">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/></svg>
-                Record
-            </button>
-        </div>
+            <h2 id="detail-channel-name" class="font-bold truncate px-4">Channel Name</h2>
+            <button id="detail-watch-btn" class="bg-blue-600 active:bg-blue-500 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-colors">Watch</button>
+        </header>
+        <div id="detail-content" class="p-4 divide-y divide-gray-800 mb-8">
+            </div>
     </div>
 
-    <div id="video-modal" class="fixed inset-0 bg-black z-50 hidden flex-col opacity-0">
-        <div class="p-4 flex justify-between items-center bg-gradient-to-b from-black/90 to-transparent absolute top-0 w-full z-10 pt-10">
-            <h2 id="video-title" class="text-white font-bold truncate pr-4 text-lg">Channel Name</h2>
-            <button onclick="closeVideo()" class="bg-gray-800/80 rounded-full p-2 text-white hover:bg-red-600 transition-colors">
+    <div id="video-modal" class="fixed inset-0 bg-black z-[60] hidden flex-col opacity-0">
+        <div class="p-4 flex justify-between items-center bg-gradient-to-b from-black/90 to-transparent absolute top-0 w-full z-10 pt-12">
+            <h2 id="video-title" class="text-white font-bold truncate pr-4 drop-shadow-md">Channel Name</h2>
+            <button onclick="goBack()" class="bg-gray-800/80 rounded-full p-2 text-white hover:bg-red-600 transition-colors">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
         <div class="flex-1 flex items-center justify-center bg-black relative">
-            <video id="tv-player" class="w-full h-full max-h-screen object-contain" controls playsinline></video>
+            <video id="tv-player" class="w-full h-full object-contain" controls playsinline></video>
             <div id="video-error" class="hidden absolute inset-0 flex-col items-center justify-center bg-black/90 text-center p-6 z-20">
                 <svg class="w-12 h-12 text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                 <p id="video-error-title" class="font-bold text-lg text-white mb-2">Playback Error</p>
                 <p id="video-error-text" class="text-sm text-gray-400">Could not connect to the stream.</p>
+                <div id="vlc-container" class="mt-4 w-full"></div>
             </div>
         </div>
     </div>
 
-    <div id="modal-overlay" onclick="closeModal()" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 hidden transition-opacity duration-300"></div>
-
     <script>
-        // --- CONFIGURATION ---
+        // --- CONFIG ---
         const DISPATCHARR_URL = ''; 
         const DIRECT_BACKEND_URL = 'http://192.168.1.1:9191'; 
-        
-        const API_KEY = 'YOUR_PERMANENT_API_KEY_HERE'; 
-        const STREAM_USERNAME = 'YOUR_DISPATCHARR_USERNAME'; 
-        const STREAM_PASSWORD = 'YOUR_DISPATCHARR_XC_PASSWORD'; 
+        const API_KEY = 'YOUR_API_KEY_HERE';
+        const STREAM_USERNAME = 'YOUR_USERNAME_HERE';
+        const STREAM_PASSWORD = 'YOUR_PASSWORD_HERE';
 
-        let currentEpgData = [];
-        let channelLookupTable = [];
-        let selectedProgram = null;
-        let mpegtsPlayer = null; 
+        let masterEPG = [];
+        let filteredEPG = [];
+        let channelLookup = [];
+        let mpegtsPlayer = null;
 
         // Initialize PWA Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch(err => {
-                    console.error('Service Worker registration failed: ', err);
-                });
+                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed'));
             });
         }
 
-        async function fetchEPG() {
+        // --- HISTORY ROUTING INTEGRATION ---
+        function goBack() {
+            if (window.location.hash && history.length > 1) {
+                // If a hash exists, natively reverse the history state
+                history.back();
+            } else {
+                // Fallback safe close
+                history.replaceState('', document.title, window.location.pathname + window.location.search);
+                closeVideo();
+                closeDetail();
+            }
+        }
+
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash;
+            if (hash === '') {
+                closeVideo();
+                closeDetail();
+            } else if (hash === '#detail') {
+                closeVideo();
+                document.getElementById('detail-layer').classList.replace('slide-hidden', 'slide-visible');
+            }
+        });
+        // --- END ROUTING ---
+
+        async function init() {
+            // Reset state on initial load
+            if (window.location.hash) {
+                history.replaceState('', document.title, window.location.pathname + window.location.search);
+            }
+
             try {
-                const [gridRes, lookupRes] = await Promise.all([
-                    fetch(`${DISPATCHARR_URL}/api/epg/grid/`, { headers: { 'X-API-Key': API_KEY } }),
-                    fetch(`${DISPATCHARR_URL}/api/channels/channels/?page_size=10000`, { headers: { 'X-API-Key': API_KEY } }).catch(() => null)
-                ]);
+                const gridRes = await fetch(`${DISPATCHARR_URL}/api/epg/grid/`, { headers: { 'X-API-Key': API_KEY } });
+                if (!gridRes.ok) throw new Error(`Server rejected EPG Grid fetch (Status: ${gridRes.status})`);
+                const rawGrid = await gridRes.json();
+                const gridArray = rawGrid.results || rawGrid.data || rawGrid.channels || (Array.isArray(rawGrid) ? rawGrid : []);
 
-                if (!gridRes.ok) throw new Error(`Server returned ${gridRes.status}`);
-                
-                if (lookupRes && lookupRes.ok) {
-                    const lData = await lookupRes.json();
-                    channelLookupTable = lData.results || lData.data || lData || [];
+                if (!Array.isArray(gridArray)) throw new Error("Grid API returned an unrecognized format.");
+
+                try {
+                    const lookupRes = await fetch(`${DISPATCHARR_URL}/api/channels/channels/?page_size=10000`, { headers: { 'X-API-Key': API_KEY } });
+                    if (lookupRes.ok) {
+                        const rawLookup = await lookupRes.json();
+                        channelLookup = rawLookup.results || rawLookup.data || rawLookup || [];
+                    }
+                } catch (lookupErr) {
+                    console.warn("Channel Lookup failed, continuing without mapping data.");
                 }
-                
-                const rawData = await gridRes.json();
-                const dataArray = rawData.results || rawData.data || rawData.channels || (Array.isArray(rawData) ? rawData : []);
-
-                if (!Array.isArray(dataArray)) throw new Error("Invalid data format received.");
 
                 let channelsMap = new Map();
 
-                dataArray.forEach(item => {
+                gridArray.forEach(item => {
                     let rawId, rawName, rawGroup;
                     let programsToPush = [];
 
@@ -167,28 +210,15 @@
 
                     if (!rawId) return; 
 
-                    let trueId = rawId;
-                    let trueName = rawName;
-                    let trueGroup = rawGroup;
+                    let match = channelLookup.find(c => String(c.id) === String(rawId) || String(c.tvg_id).toLowerCase() === String(rawId).toLowerCase());
+                    
+                    let trueId = match ? parseInt(match.id, 10) : parseInt(rawId, 10);
+                    let trueName = match ? match.name : rawName;
+                    let trueGroup = match ? (match.channel_group_name || match.channel_group || match.group) : rawGroup;
 
-                    const searchId = String(rawId).toLowerCase();
-                    const searchName = String(rawName).toLowerCase();
+                    if (!trueGroup || String(trueGroup).toLowerCase() === 'null') trueGroup = 'LIVE TV';
 
-                    const match = channelLookupTable.find(c => 
-                        String(c.id) === searchId || 
-                        (c.tvg_id && String(c.tvg_id).toLowerCase() === searchId) || 
-                        (c.name && String(c.name).toLowerCase() === searchName)
-                    );
-
-                    if (match) {
-                        trueId = parseInt(match.id, 10) || match.id;
-                        trueName = match.name || trueName;
-                        trueGroup = match.channel_group_name || match.channel_group || match.group || trueGroup;
-                    }
-
-                    if (!trueGroup || String(trueGroup).toLowerCase() === 'undefined' || String(trueGroup).toLowerCase() === 'null') {
-                        trueGroup = 'LIVE TV';
-                    }
+                    if (isNaN(trueId)) return;
 
                     let ch = channelsMap.get(String(trueId));
                     if (!ch) {
@@ -198,27 +228,22 @@
                     ch.programs.push(...programsToPush);
                 });
 
-                currentEpgData = Array.from(channelsMap.values()).map(ch => {
-                    const nowTime = new Date();
-                    let active = ch.programs.find(p => p.start_time && p.end_time && new Date(p.start_time) <= nowTime && new Date(p.end_time) > nowTime);
-                    
-                    if (!active && ch.programs.length > 0) active = ch.programs[0];
+                masterEPG = Array.from(channelsMap.values()).sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+                
+                if (masterEPG.length === 0) throw new Error("Successfully loaded data, but no channels were found.");
 
-                    return {
-                        id: ch.id,
-                        name: ch.name,
-                        group: ch.group,
-                        now: active || null
-                    };
-                });
-
-                currentEpgData.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-
-                populateGroupDropdown(currentEpgData);
-                renderEPG(currentEpgData);
-            } catch (error) {
-                console.error("EPG Fetch Error:", error);
-                document.getElementById('loading-state').innerHTML = `<div class="px-6"><p class="text-red-400 font-bold mb-1">Guide Load Failed</p><p class="text-xs text-gray-500">${error.message}</p></div>`;
+                filteredEPG = [...masterEPG];
+                populateGroupDropdown(masterEPG);
+                switchView('live');
+                
+            } catch (e) {
+                console.error("Initialization Error:", e);
+                document.getElementById('view-container').innerHTML = `
+                    <div class="p-8 text-center text-red-400 flex flex-col items-center mt-10">
+                        <svg class="w-12 h-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        <h2 class="font-bold text-lg text-white mb-2">Failed to load Catcharr</h2>
+                        <p class="text-xs font-mono bg-gray-800 p-3 rounded text-left w-full break-words border border-red-900">${e.message}</p>
+                    </div>`;
             }
         }
 
@@ -238,156 +263,376 @@
         function applyFilters() {
             const searchTerm = document.getElementById('search-input').value.toLowerCase();
             const selectedGroup = document.getElementById('group-filter').value;
+            const now = new Date();
 
-            const filtered = currentEpgData.filter(ch => {
+            filteredEPG = masterEPG.filter(ch => {
                 const matchesGroup = selectedGroup === 'ALL' || ch.group === selectedGroup;
-                const matchesSearch = ch.name.toLowerCase().includes(searchTerm) || (ch.now && ch.now.title.toLowerCase().includes(searchTerm));
+                const currentProg = ch.programs.find(p => new Date(p.start_time) <= now && new Date(p.end_time) > now) || ch.programs[0];
+                const progName = currentProg ? currentProg.title.toLowerCase() : '';
+                const matchesSearch = ch.name.toLowerCase().includes(searchTerm) || progName.includes(searchTerm);
+                
                 return matchesGroup && matchesSearch;
             });
-            renderEPG(filtered);
+
+            if (document.getElementById('tab-live-top').classList.contains('text-white')) renderLiveView(); 
+            if (document.getElementById('tab-grid-top').classList.contains('text-white')) renderGridView();
         }
 
         document.getElementById('search-input').addEventListener('input', applyFilters);
         document.getElementById('group-filter').addEventListener('change', applyFilters);
 
-        function renderEPG(channels) {
-            const container = document.getElementById('epg-container');
-            container.innerHTML = ''; 
-            
-            if (channels.length === 0) {
-                container.innerHTML = '<div class="p-12 text-center text-gray-500">No matching channels found.</div>';
-                return;
-            }
-
-            channels.forEach(ch => {
-                const card = document.createElement('div');
-                card.className = 'p-4 active:bg-gray-800 transition-colors duration-100 cursor-pointer';
-                card.setAttribute('onclick', `openModal('${ch.id}')`);
-                
-                const nowTitle = ch.now ? ch.now.title : 'No Information';
-                
-                card.innerHTML = `
-                    <div class="flex justify-between items-start mb-1">
-                        <h3 class="font-bold text-base truncate pr-4 text-gray-100">${ch.name}</h3>
-                        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">${ch.group}</span>
-                    </div>
-                    <div class="bg-gray-800/40 border border-gray-700/50 p-3 rounded-xl flex justify-between items-center group">
-                        <div class="flex-1 truncate mr-3">
-                            <span class="text-[10px] font-bold text-blue-500 uppercase mb-0.5 block">Now Playing</span>
-                            <p class="font-semibold text-white truncate text-sm">${nowTitle}</p>
-                        </div>
-                        <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-white group-active:bg-blue-600 transition-colors shadow-lg">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(card);
+        function updateTabStyles(activeView) {
+            const tabs = ['live', 'grid', 'dvr'];
+            tabs.forEach(tab => {
+                const topBtn = document.getElementById(`tab-${tab}-top`);
+                if (tab === activeView) {
+                    topBtn.className = 'px-3 py-1 rounded text-sm font-bold bg-gray-700 text-white transition-colors';
+                } else {
+                    topBtn.className = 'px-3 py-1 rounded text-sm font-bold text-gray-400 hover:text-white transition-colors';
+                }
             });
         }
 
-        function openModal(channelId) {
-            const channel = currentEpgData.find(c => String(c.id) === String(channelId));
-            if (!channel) return; 
+        function switchView(view) {
+            updateTabStyles(view);
             
-            const activeProgram = channel.now || {};
-            
-            selectedProgram = {
-                trueChannelId: channel.id, 
-                channelName: channel.name,
-                id: activeProgram.id,
-                start_time: activeProgram.start_time,
-                end_time: activeProgram.end_time,
-                title: activeProgram.title,
-                description: activeProgram.description || activeProgram.desc
-            };
-            
-            let timeString = '';
-            if (selectedProgram.start_time && selectedProgram.end_time) {
-                const start = new Date(selectedProgram.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                const end = new Date(selectedProgram.end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                timeString = ` • ${start} - ${end}`;
-            }
-
-            document.getElementById('modal-title').innerText = selectedProgram.title || 'No Program Data';
-            document.getElementById('modal-channel').innerText = `${channel.name}${timeString}`;
-            document.getElementById('modal-desc').innerText = selectedProgram.description || 'No description available for this channel.';
-            
-            const btnRecord = document.getElementById('btn-record');
-            const btnPlay = document.getElementById('btn-play');
-            
-            let rawChanId = selectedProgram.trueChannelId;
-            if (typeof rawChanId === 'object' && rawChanId !== null) rawChanId = rawChanId.id || rawChanId.pk || rawChanId;
-            
-            let chanIdInt = parseInt(rawChanId, 10);
-            if (isNaN(chanIdInt)) {
-                const searchId = String(rawChanId).toLowerCase();
-                const searchName = String(selectedProgram.channelName).toLowerCase();
-                let match = channelLookupTable.find(c => (c.tvg_id && String(c.tvg_id).toLowerCase() === searchId) || (c.name && String(c.name).toLowerCase() === searchName) || String(c.id) === searchId);
-                if (!match) match = channelLookupTable.find(c => JSON.stringify(c).toLowerCase().includes(searchId) || JSON.stringify(c).toLowerCase().includes(searchName));
-                if (match && match.id) chanIdInt = parseInt(match.id, 10);
-            }
-
-            if (isNaN(chanIdInt)) {
-                btnPlay.classList.replace('bg-blue-600', 'bg-gray-600');
-                btnPlay.disabled = true;
+            const searchBar = document.getElementById('search-input').parentElement;
+            if (view === 'dvr') {
+                searchBar.style.display = 'none';
+                renderDVRView();
             } else {
-                selectedProgram.mappedIntId = chanIdInt; 
-                btnPlay.classList.replace('bg-gray-600', 'bg-blue-600');
-                btnPlay.disabled = false;
+                searchBar.style.display = 'flex';
+                if (view === 'live') renderLiveView();
+                if (view === 'grid') renderGridView();
             }
-
-            if (!selectedProgram.id || isNaN(chanIdInt)) {
-                btnRecord.classList.replace('bg-red-600', 'bg-gray-600');
-                btnRecord.disabled = true;
-            } else {
-                btnRecord.classList.replace('bg-gray-600', 'bg-red-600');
-                btnRecord.disabled = false;
-            }
-
-            document.getElementById('modal-overlay').classList.remove('hidden');
-            document.getElementById('record-modal').classList.replace('modal-closed', 'modal-open');
         }
 
-        function closeModal() {
-            document.getElementById('record-modal').classList.replace('modal-open', 'modal-closed');
-            setTimeout(() => document.getElementById('modal-overlay').classList.add('hidden'), 300);
+        function renderLiveView() {
+            const now = new Date();
+            const html = filteredEPG.map(ch => {
+                const current = ch.programs.find(p => p.start_time && p.end_time && new Date(p.start_time) <= now && new Date(p.end_time) > now) || ch.programs[0];
+                return `
+                <div class="p-4 border-b border-gray-800 active:bg-gray-800 cursor-pointer transition-colors" onclick="openDetail('${ch.id}')">
+                    <div class="flex justify-between text-[10px] font-bold text-gray-500 mb-1 uppercase tracking-tighter">
+                        <span class="truncate pr-2">${ch.name}</span>
+                        <span class="flex-shrink-0">${ch.group || 'LIVE TV'}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <p class="font-bold truncate pr-4 text-gray-100 text-sm">${current ? current.title : 'No Data Available'}</p>
+                        <div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-blue-400 flex-shrink-0">
+                             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6V4z"/></svg>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+            
+            document.getElementById('view-container').innerHTML = html || `<p class="p-10 text-center text-gray-500">No channels found.</p>`;
         }
 
-        function playStream() {
-            closeModal(); 
+        function renderGridView() {
+            const now = new Date();
+            const startTime = new Date(now.setMinutes(0, 0, 0));
+            const hours = Array.from({length: 12}, (_, i) => new Date(startTime.getTime() + i * 3600000));
+            
+            if (filteredEPG.length === 0) {
+                document.getElementById('view-container').innerHTML = `<p class="p-10 text-center text-gray-500">No channels found.</p>`;
+                return;
+            }
 
-            const videoModal = document.getElementById('video-modal');
-            const videoElement = document.getElementById('tv-player');
+            let html = `<div class="epg-grid-container relative min-h-full pb-8">
+                <div class="sticky left-0 z-20 bg-gray-900 w-[120px] border-r border-gray-700 shadow-xl">
+                    <div class="h-10 bg-gray-800 border-b border-gray-700"></div>
+                    ${filteredEPG.map(ch => `<div class="h-16 flex items-center px-2 text-[10px] font-bold border-b border-gray-800 truncate cursor-pointer active:text-blue-400" onclick="openDetail('${ch.id}')">${ch.name}</div>`).join('')}
+                </div>
+                <div class="flex-1 overflow-x-auto relative">
+                    <div class="flex bg-gray-800 border-b border-gray-700">
+                        ${hours.map(h => `<div class="time-slot w-[200px] flex-shrink-0 font-bold text-gray-400">${h.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>`).join('')}
+                    </div>
+                    <div class="relative">
+                        ${filteredEPG.map(ch => `
+                            <div class="h-16 relative border-b border-gray-800">
+                                ${ch.programs.filter(p => new Date(p.end_time) > startTime).map((p, i) => {
+                                    const pStart = new Date(p.start_time);
+                                    let left = (pStart - startTime) / 3600000 * 200;
+                                    let width = (new Date(p.end_time) - pStart) / 3600000 * 200;
+                                    
+                                    if (left < 0) { width += left; left = 0; }
+                                    
+                                    const bgClass = i % 2 === 0 ? 'bg-gray-700' : 'bg-gray-600';
+                                    
+                                    return `<div class="program-block cursor-pointer border-r border-gray-800 ${bgClass} rounded-sm" style="left:${left}px; width:${width}px" onclick="openDetail('${ch.id}', '${p.id}')">
+                                        <p class="font-bold truncate text-gray-100">${p.title}</p>
+                                    </div>`;
+                                }).join('')}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>`;
+            document.getElementById('view-container').innerHTML = html;
+        }
+
+        async function fetchRecordings() {
+            try {
+                const res = await fetch(`${DISPATCHARR_URL}/api/channels/recordings/`, { headers: { 'X-API-Key': API_KEY } });
+                if (!res.ok) throw new Error("Failed to fetch recordings");
+                const data = await res.json();
+                return data.results || data || [];
+            } catch (e) {
+                console.error("DVR Fetch Error:", e);
+                return [];
+            }
+        }
+
+        async function renderDVRView() {
+            const container = document.getElementById('view-container');
+            container.innerHTML = `
+                <div class="p-12 text-center text-gray-500">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+                    <p class="text-sm font-medium">Loading DVR...</p>
+                </div>`;
+            
+            const recordings = await fetchRecordings();
+            
+            if (recordings.length === 0) {
+                container.innerHTML = '<p class="p-10 text-center text-gray-500">No recordings found.</p>';
+                return;
+            }
+
+            recordings.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+            const now = new Date();
+
+            const html = recordings.map(rec => {
+                const matchedChannel = masterEPG.find(c => String(c.id) === String(rec.channel));
+                const channelName = matchedChannel ? matchedChannel.name : `Channel ${rec.channel}`;
+                
+                let title = rec.custom_properties?.program?.title || rec.title || rec.name;
+                if (!title || String(title).toLowerCase() === 'undefined') {
+                    title = `${channelName} Recording`;
+                }
+
+                const dateObj = new Date(rec.start_time);
+                const endDateObj = new Date(rec.end_time);
+                
+                const dateStr = dateObj.toLocaleDateString();
+                const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                
+                const isCompleted = endDateObj < now;
+                const isRecordingNow = dateObj <= now && endDateObj >= now;
+                
+                let actionButtons = '';
+                
+                if (isCompleted) {
+                    const fileUrl = `${DISPATCHARR_URL}/api/channels/recordings/${rec.id}/file/?api_key=${API_KEY}`;
+                    const safeFileName = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+                    actionButtons = `
+                        <button onclick="playDVRStream('${fileUrl}', '${title.replace(/'/g, "\\'")}')" class="bg-blue-600 hover:bg-blue-500 p-2.5 rounded-xl text-white transition-colors shadow-lg active:scale-95">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6V4z"/></svg>
+                        </button>
+                        <a href="${fileUrl}" download="${safeFileName}.ts" target="_blank" class="bg-green-600 hover:bg-green-500 p-2.5 rounded-xl text-white transition-colors shadow-lg active:scale-95 flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        </a>
+                    `;
+                } else if (isRecordingNow) {
+                    actionButtons = `<div class="flex items-center gap-2 px-3 py-1 rounded bg-red-900/30 border border-red-900"><div class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></div><span class="text-[10px] font-bold text-red-400 uppercase tracking-wider">Recording</span></div>`;
+                } else {
+                    actionButtons = `<div class="px-3 py-1 rounded bg-gray-700/50 border border-gray-600"><span class="text-[10px] font-bold text-gray-300 uppercase tracking-wider">Scheduled</span></div>`;
+                }
+
+                return `
+                <div class="p-4 border-b border-gray-800 bg-gray-900/50 hover:bg-gray-800 transition-colors">
+                    <div class="flex justify-between items-center">
+                        <div class="flex-1 pr-4 truncate">
+                            <p class="font-bold text-gray-100 truncate">${title}</p>
+                            <p class="text-[10px] text-gray-500 font-bold uppercase mt-1 tracking-wider">${channelName} • ${dateStr} at ${timeStr}</p>
+                        </div>
+                        <div class="flex gap-2 items-center flex-shrink-0">
+                            ${actionButtons}
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html + '<div class="h-8"></div>'; 
+        }
+
+        function playDVRStream(url, title) {
+            window.location.hash = 'video';
+            const modal = document.getElementById('video-modal');
+            const video = document.getElementById('tv-player');
             const errorOverlay = document.getElementById('video-error');
             
-            document.getElementById('video-title').innerText = selectedProgram.channelName;
-            
-            videoModal.classList.remove('hidden');
-            videoModal.classList.add('flex');
-            setTimeout(() => videoModal.classList.replace('opacity-0', 'opacity-100'), 50); 
-            
-            // Hide the error overlay by default
+            document.getElementById('video-title').innerText = title;
             errorOverlay.classList.add('hidden');
             errorOverlay.classList.remove('flex');
+            document.getElementById('vlc-container').innerHTML = '';
+            
+            if (mpegtsPlayer) {
+                mpegtsPlayer.destroy();
+                mpegtsPlayer = null;
+            }
+
+            video.onerror = null;
+            video.addEventListener('playing', () => {
+                errorOverlay.classList.add('hidden');
+                errorOverlay.classList.remove('flex');
+            });
+            
+            video.src = url;
+            video.load();
+
+            video.onerror = function() {
+                document.getElementById('video-error-title').innerText = "Apple Codec Block";
+                document.getElementById('video-error-text').innerText = "Safari refuses to decode this recording's format.";
+                document.getElementById('vlc-container').innerHTML = `
+                    <a href="vlc://${url.replace(/^https?:\/\//, '')}" class="mt-4 flex items-center justify-center gap-2 bg-orange-500 text-white font-bold py-3 px-6 rounded-xl w-full active:scale-95 transition-transform">
+                        Open in VLC
+                    </a>
+                    <button onclick="goBack()" class="mt-2 flex items-center justify-center gap-2 bg-gray-800 text-gray-300 font-bold py-3 px-6 rounded-xl w-full border border-gray-700 active:bg-gray-700 transition-colors">
+                        Return to Catcharr
+                    </button>
+                `;
+                errorOverlay.classList.remove('hidden');
+                errorOverlay.classList.add('flex');
+            };
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => modal.classList.replace('opacity-0', 'opacity-100'), 50);
+            
+            video.play().catch(err => console.error("Autoplay Error:", err));
+        }
+
+        function openDetail(channelId, programId = null) {
+            window.location.hash = 'detail';
+            const ch = masterEPG.find(c => String(c.id) === String(channelId));
+            if (!ch) return;
+
+            document.getElementById('detail-channel-name').innerText = ch.name;
+            document.getElementById('detail-watch-btn').onclick = () => playStream(ch.id, ch.name);
+
+            const now = new Date();
+            const html = ch.programs.map(p => {
+                const isPast = new Date(p.end_time) < now;
+                const isCurrentlyPlaying = new Date(p.start_time) <= now && !isPast;
+                const start = new Date(p.start_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                const end = new Date(p.end_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                
+                const idTag = String(p.id) === String(programId) ? 'id="selected-program"' : '';
+                const highlight = String(p.id) === String(programId) ? 'bg-gray-800 border-blue-500/50' : 'border-transparent';
+
+                return `
+                <div ${idTag} class="py-4 px-2 border-l-2 ${isCurrentlyPlaying ? 'border-blue-500 bg-blue-900/10' : highlight} ${isPast ? 'opacity-40 grayscale' : ''} transition-colors">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="${isCurrentlyPlaying ? 'text-blue-400' : 'text-gray-400'} font-bold text-xs">${start} - ${end}</span>
+                        ${!isPast && p.id ? `<button onclick="record('${ch.id}', '${p.id}', '${p.start_time}', '${p.end_time}', this)" class="text-[10px] bg-red-600/20 text-red-500 hover:bg-red-600/40 px-3 py-1.5 rounded-full font-bold uppercase tracking-wider transition-colors active:scale-95 shadow-sm">Record</button>` : ''}
+                    </div>
+                    <p class="font-bold text-gray-100">${p.title}</p>
+                    <p class="text-xs text-gray-500 mt-1 leading-relaxed">${p.description || 'No description available.'}</p>
+                </div>`;
+            }).join('');
+
+            document.getElementById('detail-content').innerHTML = html || `<div class="p-8 text-center text-gray-500">No schedule data available.</div>`;
+            document.getElementById('detail-layer').classList.replace('slide-hidden', 'slide-visible');
+
+            if (programId) {
+                setTimeout(() => {
+                    const el = document.getElementById('selected-program');
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+            }
+        }
+
+        function closeDetail() {
+            document.getElementById('detail-layer').classList.replace('slide-visible', 'slide-hidden');
+        }
+
+        async function record(cId, pId, start, end, btnElement) {
+            const originalText = btnElement.innerText;
+            btnElement.innerText = "WAIT...";
+            btnElement.disabled = true;
+
+            let recordTitle = `Recording for Channel ${cId}`;
+            let recordDesc = "";
+            const matchedChannel = masterEPG.find(c => String(c.id) === String(cId));
+            if (matchedChannel) {
+                const matchedProg = matchedChannel.programs.find(p => String(p.id) === String(pId));
+                if (matchedProg) {
+                    recordTitle = matchedProg.title;
+                    recordDesc = matchedProg.description || "";
+                }
+            }
+
+            try {
+                const res = await fetch(`${DISPATCHARR_URL}/api/channels/recordings/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+                    body: JSON.stringify({
+                        channel: parseInt(cId, 10),
+                        start_time: start,
+                        end_time: end,
+                        custom_properties: { 
+                            program: { 
+                                id: parseInt(pId, 10), 
+                                title: recordTitle,
+                                description: recordDesc,
+                                start_time: start, 
+                                end_time: end 
+                            } 
+                        }
+                    })
+                });
+                
+                if (res.ok) {
+                    btnElement.innerText = "✓ SET";
+                    btnElement.classList.replace('text-red-500', 'text-green-400');
+                    btnElement.classList.replace('bg-red-600/20', 'bg-green-600/20');
+                } else {
+                    throw new Error("Failed to schedule.");
+                }
+            } catch (err) {
+                alert("Recording failed. Check console.");
+                btnElement.innerText = "FAILED";
+                setTimeout(() => {
+                    btnElement.innerText = originalText;
+                    btnElement.disabled = false;
+                }, 3000);
+            }
+        }
+
+        function playStream(chanId, name) {
+            window.location.hash = 'video';
+            const modal = document.getElementById('video-modal');
+            const video = document.getElementById('tv-player');
+            const errorOverlay = document.getElementById('video-error');
+            
+            document.getElementById('video-title').innerText = name;
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => modal.classList.replace('opacity-0', 'opacity-100'), 50);
+
+            errorOverlay.classList.add('hidden');
+            errorOverlay.classList.remove('flex');
+            document.getElementById('vlc-container').innerHTML = '';
+
+            const streamUrl = `${DIRECT_BACKEND_URL}/${STREAM_USERNAME}/${STREAM_PASSWORD}/${chanId}`;
+            const appleHlsUrl = `${DIRECT_BACKEND_URL}/live/${STREAM_USERNAME}/${STREAM_PASSWORD}/${chanId}.m3u8`;
 
             if (mpegtsPlayer) {
                 mpegtsPlayer.destroy();
                 mpegtsPlayer = null;
             }
 
-            // Remove any previous error listeners from Safari
-            videoElement.onerror = null;
-
-            videoElement.addEventListener('playing', () => {
+            video.onerror = null;
+            video.addEventListener('playing', () => {
                 errorOverlay.classList.add('hidden');
                 errorOverlay.classList.remove('flex');
             });
 
             if (typeof mpegts !== 'undefined' && mpegts.getFeatureList().mseLivePlayback) {
-                // --- ANDROID / CHROME / PC PLAYER (MPEG-TS) ---
-                const streamUrl = `${DIRECT_BACKEND_URL}/${STREAM_USERNAME}/${STREAM_PASSWORD}/${selectedProgram.mappedIntId}`;
-                console.log("Loading DIRECT stream bypass:", streamUrl);
-
                 mpegtsPlayer = mpegts.createPlayer({
                     type: 'm2ts', 
                     isLive: true,
@@ -402,79 +647,54 @@
                     liveBufferLatencyMinRemain: 4
                 });
                 
-                mpegtsPlayer.on(mpegts.Events.ERROR, (errorType, errorDetail, errorInfo) => {
-                    console.warn("Player Event:", errorType, errorDetail, errorInfo);
-                    
+                mpegtsPlayer.on(mpegts.Events.ERROR, (errorType, errorDetail) => {
                     if (errorType === mpegts.ErrorTypes.NETWORK_ERROR) {
-                        if (errorDetail === mpegts.ErrorDetails.NETWORK_EXCEPTION) {
-                            document.getElementById('video-error-text').innerText = `Direct Connection Blocked (CORS) or Server Offline.`;
-                        } else {
-                            document.getElementById('video-error-text').innerText = `Network connection lost.`;
-                        }
+                        document.getElementById('video-error-title').innerText = "Playback Error";
+                        document.getElementById('video-error-text').innerText = "Network connection lost or stream offline.";
                         errorOverlay.classList.remove('hidden');
                         errorOverlay.classList.add('flex');
                     }
                 });
 
-                mpegtsPlayer.attachMediaElement(videoElement);
+                mpegtsPlayer.attachMediaElement(video);
                 mpegtsPlayer.load();
-                mpegtsPlayer.play().catch(err => console.log("Autoplay prevented:", err));
+                mpegtsPlayer.play().catch(err => console.log("Autoplay prevented"));
 
-            } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-                // --- SAFARI / iOS NATIVE FALLBACK (HLS + VLC) ---
-                const appleHlsUrl = `${DIRECT_BACKEND_URL}/live/${STREAM_USERNAME}/${STREAM_PASSWORD}/${selectedProgram.mappedIntId}.m3u8`;
-                const rawTsUrl = `${DIRECT_BACKEND_URL}/${STREAM_USERNAME}/${STREAM_PASSWORD}/${selectedProgram.mappedIntId}`;
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = appleHlsUrl;
+                video.load();
                 
-                console.log("Loading Native Apple HLS stream:", appleHlsUrl);
-                
-                videoElement.src = appleHlsUrl;
-                videoElement.load();
-                
-                // If Apple's strict hardware decoder hits the crossed-out play button, catch it and offer VLC!
-                videoElement.onerror = function() {
-                    console.error("Apple Hardware Codec Blocked Stream.");
+                video.onerror = function() {
                     document.getElementById('video-error-title').innerText = "Apple Codec Block";
-                    
-                    // The vlc:// URL scheme triggers the VLC iOS app to open the stream
-                    document.getElementById('video-error-text').innerHTML = `
-                        Safari refuses to decode this stream format.<br><br>
-                        <a href="vlc://${rawTsUrl.replace(/^https?:\/\//, '')}" class="mt-6 inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 text-white font-bold py-3 px-6 rounded-xl shadow-lg w-full">
-                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 4.5l6.5 13h-13L12 6.5z"/></svg>
+                    document.getElementById('video-error-text').innerText = "Safari refuses to decode this stream.";
+                    document.getElementById('vlc-container').innerHTML = `
+                        <a href="vlc://${streamUrl.replace(/^https?:\/\//, '')}" class="mt-4 flex items-center justify-center gap-2 bg-orange-500 text-white font-bold py-3 px-6 rounded-xl w-full active:scale-95 transition-transform">
                             Open in VLC
                         </a>
+                        <button onclick="goBack()" class="mt-2 flex items-center justify-center gap-2 bg-gray-800 text-gray-300 font-bold py-3 px-6 rounded-xl w-full border border-gray-700 active:bg-gray-700 transition-colors">
+                            Return to Catcharr
+                        </button>
                     `;
                     errorOverlay.classList.remove('hidden');
                     errorOverlay.classList.add('flex');
                 };
                 
-                videoElement.play().catch(err => {
-                    console.warn("Safari blocked autoplay. User must tap play manually.", err);
+                video.play().catch(() => {
+                    errorOverlay.classList.add('hidden');
+                    errorOverlay.classList.remove('flex');
                 });
-
-            } else {
-                // Absolute worst-case scenario fallback
-                document.getElementById('video-error-title').innerText = "Browser Unsupported";
-                document.getElementById('video-error-text').innerText = "This device does not support TS or HLS streaming.";
-                errorOverlay.classList.remove('hidden');
-                errorOverlay.classList.add('flex');
             }
         }
 
         function closeVideo() {
-            const videoModal = document.getElementById('video-modal');
-            const videoElement = document.getElementById('tv-player');
-            const errorOverlay = document.getElementById('video-error');
+            const modal = document.getElementById('video-modal');
+            const video = document.getElementById('tv-player');
             
-            videoModal.classList.replace('opacity-100', 'opacity-0'); 
+            modal.classList.replace('opacity-100', 'opacity-0'); 
             
             setTimeout(() => {
-                videoModal.classList.add('hidden');
-                videoModal.classList.remove('flex');
-                
-                // Clear out the VLC link so it doesn't persist to the next channel
-                errorOverlay.classList.add('hidden');
-                errorOverlay.classList.remove('flex');
-                document.getElementById('video-error-text').innerHTML = 'Could not connect to the stream.';
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
                 
                 if (mpegtsPlayer) {
                     mpegtsPlayer.pause();
@@ -484,73 +704,13 @@
                     mpegtsPlayer = null;
                 }
                 
-                videoElement.pause();
-                videoElement.removeAttribute('src');
-                videoElement.load();
+                video.pause();
+                video.removeAttribute('src');
+                video.load();
             }, 300); 
         }
 
-        async function submitRecording() {
-            const btn = document.getElementById('btn-record');
-            const originalContent = btn.innerHTML;
-            btn.innerHTML = `Scheduling...`;
-            btn.disabled = true;
-
-            try {
-                let rawProgId = selectedProgram.id;
-                if (typeof rawProgId === 'object' && rawProgId !== null) rawProgId = rawProgId.id || rawProgId.pk || rawProgId;
-
-                let progIdInt = parseInt(rawProgId, 10);
-
-                if (isNaN(selectedProgram.mappedIntId) || isNaN(progIdInt)) {
-                    throw new Error(`Invalid IDs mapped.`);
-                }
-
-                const payload = {
-                    channel: selectedProgram.mappedIntId,
-                    start_time: selectedProgram.start_time,
-                    end_time: selectedProgram.end_time,
-                    custom_properties: {
-                        program: {
-                            id: progIdInt,
-                            start_time: selectedProgram.start_time,
-                            end_time: selectedProgram.end_time
-                        }
-                    }
-                };
-
-                const response = await fetch(`${DISPATCHARR_URL}/api/channels/recordings/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.ok) {
-                    btn.innerHTML = `✓ Scheduled`;
-                    btn.classList.replace('bg-red-600', 'bg-green-600');
-                    setTimeout(closeModal, 1500);
-                } else {
-                    const errorData = await response.json();
-                    const errorField = Object.keys(errorData)[0];
-                    let errorMessage = errorData[errorField];
-                    if (Array.isArray(errorMessage)) errorMessage = errorMessage[0];
-                    else if (typeof errorMessage === 'object') errorMessage = JSON.stringify(errorMessage);
-                    throw new Error(`${errorField}: ${errorMessage}`);
-                }
-            } catch (error) {
-                console.error("Recording Error:", error);
-                alert("RECORDING FAILED:\n\n" + error.message);
-                btn.innerHTML = `Failed`;
-                btn.disabled = false;
-                btn.classList.replace('bg-red-600', 'bg-orange-600');
-                setTimeout(() => {
-                    btn.innerHTML = originalContent;
-                    btn.classList.replace('bg-orange-600', 'bg-red-600');
-                }, 4000);
-            }
-        }
-
-        fetchEPG();
+        init();
     </script>
 </body>
 </html>
