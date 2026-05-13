@@ -11,6 +11,7 @@ Download the docker-compose.yml and the index.html and put them both in the same
 
 Edit index.html and locate the line
 const API_KEY = 'YOUR_PERMANENT_API_KEY_HERE'; // <-- Remember to put your key here!
+
 Replace YOUR_PERMANENT_API_KEY_HERE with your API key from Dispatcharr
 
 Run Catcharr with the following command
