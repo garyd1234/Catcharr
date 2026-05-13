@@ -29,7 +29,7 @@ Edit index.html and locate the lines - and update them with your correct details
 
 Edit default.conf and locate the line
 
-proxy_pass http://192.168.1.1:9191/api/;
+        proxy_pass http://192.168.1.1:9191/api/;
 
 Replace the IP Address and port with those from your Dispatcharr instance
 
