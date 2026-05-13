@@ -5,7 +5,7 @@ A tool to view Dispatcharr guides and remote scheduled recordings
 
 Prerequisites:
 
-Dispatcharr configures and an API account created with an API Key
+Dispatcharr configured, and an API account created with an API Key
 
 How to use:
 
@@ -16,6 +16,7 @@ Edit index.html and locate the line
 const API_KEY = 'YOUR_PERMANENT_API_KEY_HERE'; // <-- Remember to put your key here!
 
 Replace YOUR_PERMANENT_API_KEY_HERE with your API key from Dispatcharr
+
 
 Run Catcharr with the following command
 
