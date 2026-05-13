@@ -5,23 +5,25 @@ A tool to view Dispatcharr guides and remote scheduled recordings
 
 Prerequisites:
 
-Dispatcharr configured, and an API account created with an API Key
+Dispatcharr configured, and an API account created with an API Key and an XC Password (not just a login password)
 
 ---------------------------------------------------------------------------------------------
 
 
 How to use:
 
-Download the docker-compose.yml, default.conf and the index.html and put them all in the same folder
+Download all the files and put them all in the same folder
 
 
 ---------------------------------------------------------------------------------------------
 
-Edit index.html and locate the line
+Edit index.html and locate the lines - and update them with your correct details - make sure you enter the XC password from dispatcharr
 
-const API_KEY = 'YOUR_PERMANENT_API_KEY_HERE'; // <-- Remember to put your key here!
-
-Replace YOUR_PERMANENT_API_KEY_HERE with your API key from Dispatcharr
+        const DIRECT_BACKEND_URL = 'http://192.168.1.1:9191'; 
+        
+        const API_KEY = 'YOUR_PERMANENT_API_KEY_HERE'; 
+        const STREAM_USERNAME = 'YOUR_DISPATCHARR_USERNAME'; 
+        const STREAM_PASSWORD = 'YOUR_DISPATCHARR_XC_PASSWORD'; 
 
 ---------------------------------------------------------------------------------------------
 
