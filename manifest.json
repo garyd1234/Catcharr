@@ -1,0 +1,16 @@
+{
+  "name": "Catcharr Mobile Guide",
+  "short_name": "Catcharr",
+  "description": "Mobile IPTV Frontend for Dispatcharr",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#1f2937",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

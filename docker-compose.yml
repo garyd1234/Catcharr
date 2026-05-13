@@ -1,10 +1,12 @@
 services:
-  catcharr:
-    image: nginx:alpine
-    container_name: catcharr
+  nginx:
+    image: nginx:latest
     ports:
       - "8123:80"
     volumes:
-      - ./index.html:/usr/share/nginx/html/index.html:ro
-      - ./default.conf:/etc/nginx/conf.d/default.conf:ro
-    restart: unless-stopped
+      - ./index.html:/usr/share/nginx/html/index.html
+      - ./default.conf:/etc/nginx/conf.d/default.conf
+      - ./manifest.json:/usr/share/nginx/html/manifest.json
+      - ./sw.js:/usr/share/nginx/html/sw.js
+      - ./icon.png:/usr/share/nginx/html/icon.png
+    restart: always
