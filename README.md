@@ -36,3 +36,7 @@ Replace the IP Address and port with those from your Dispatcharr instance
 Run Catcharr with the following command
 
 docker compose up -d
+
+---------------------------------------------------------------------------------------------
+
+**The webpage should be connectable on port 8123**
