@@ -17,7 +17,7 @@ Download all the files and put them all in the same folder
 
 ---------------------------------------------------------------------------------------------
 
-Edit index.html and locate the lines - and update them with your correct details - make sure you enter the XC password from dispatcharr
+Edit index.html and locate the lines - and update them with your correct details including ip address or DNS - make sure you enter the XC password from dispatcharr
 
         const DIRECT_BACKEND_URL = 'http://192.168.1.1:9191'; 
         
